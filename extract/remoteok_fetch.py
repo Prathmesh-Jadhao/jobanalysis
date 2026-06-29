@@ -2,6 +2,8 @@ import requests
 import json
 from datetime import datetime
 from pathlib import Path
+from config import RAW_DATA
+from utils.logger import logger
 
 def fetch_remoteok_jobs():
     """Fetch jobs from RemoteOK API"""
@@ -11,29 +13,44 @@ def fetch_remoteok_jobs():
     headers = {
         "user-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
 
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
         jobs = response.json()
 
-        # create raw data directory if it doesn't exist
-        raw_dir = Path("data/raw")
-        raw_dir.mkdir(parents=True, exist_ok=True)
+        # Create filename with today's date
+        output_filename = f"jobs_{datetime.now().strftime('%Y-%m-%d')}.json"
+        output_path = RAW_DATA / output_filename
 
-        # create filename with todays date
-        file_name = f"jobs_{datetime.now().strftime('%Y-%m-%d')}.json"
+        # Save raw JSON
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(jobs, f, indent=4, ensure_ascii=False)
 
-        output_path = raw_dir / file_name
+        return {
+            "records": len(jobs),
+            "file": output_path
+        }
 
-        # save raw JSON
-        with open(output_path, "w") as f:
-            json.dump(jobs, f, indent=4)
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error occurred: {e}")
+        raise
 
-        print(f"Saved {len(jobs)} jobs to {output_path}")
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error: {e}")
+        raise
 
-    else:
-        print(f"Failed to fetch jobs. Status code: {response.status_code}")
+    except requests.exceptions.Timeout as e:
+        logger.error(f"Request timed out: {e}")
+        raise
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request failed: {e}")
+        raise
+
+    except Exception as e:
+        logger.exception(f"Unexpected error while fetching jobs.")
+        raise
 
 if __name__ == "__main__":
     fetch_remoteok_jobs()

@@ -1,5 +1,6 @@
 import pandas as pd
-from pathlib import Path
+from config import PROCESSED_DATA
+from utils.logger import logger
 
 SKILLS = [
     "Python",
@@ -20,9 +21,18 @@ SKILLS = [
 
 
 def extract_skills():
-    input_file = Path("data/processed/clean_jobs.csv")
+    input_file = PROCESSED_DATA / "clean_jobs.csv"
 
-    df = pd.read_csv(input_file)
+    try:
+        df = pd.read_csv(input_file)
+
+    except FileNotFoundError:
+        logger.error("Clean jobs CSV not found.")
+        raise
+
+    except Exception:
+        logger.exception("Failed to read cleaned jobs CSV.")
+        raise
 
     extracted_skills = []
 
@@ -43,11 +53,16 @@ def extract_skills():
 
     df["skills"] = extracted_skills
 
-    output_file = Path("data/processed/jobs_with_skills.csv")
+    output_file = PROCESSED_DATA / "jobs_with_skills.csv"
 
-    df.to_csv(output_file, index=False)
-
-    print(f"Saved {len(df)} records to {output_file}")
+    try:
+        df.to_csv(output_file, index=False)
+        logger.info(
+            f"Saved {len(df)} records with extracted skills to {output_file}"
+        )
+    except Exception:
+        logger.exception("Failed to save jobs with extracted skills.")
+        raise
 
 
 if __name__ == "__main__":
